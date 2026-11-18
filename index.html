@@ -1,0 +1,372 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VANTA EAX Studio</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:15px;background:#080808;font-family:Tahoma,Arial;color:#333}
+.console{max-width:1000px;margin:auto;background:#eee;border:3px solid #aaa;border-radius:14px;overflow:hidden;box-shadow:0 0 15px #008cff}
+.header{padding:18px;background:linear-gradient(#fff,#ccc);display:flex;justify-content:space-around;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:5px solid #00baff}
+.logo{font-size:25px;font-weight:bold}
+.logo span{color:#008bd0}
+.tabs{display:flex;background:linear-gradient(#eee,#bbb)}
+.tab{flex:1;padding:15px 3px;text-align:center;font-weight:bold;cursor:pointer;border-right:1px solid #aaa}
+.tab.active{background:white;color:#0877c2}
+.content{padding:20px;background:linear-gradient(#fff,#eee);min-height:390px}
+.description{font-size:17px;margin-bottom:25px}
+.mainbox{border:2px solid #ddd;background:#f4f1f5;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+select{width:100%;padding:12px;font-size:17px;background:white;border:2px solid #999}
+input[type=range]{width:100%;accent-color:#087fc7}
+.control{margin:15px 0;font-weight:bold}
+.value{float:left;color:#087fc7}
+button{padding:11px 17px;border:1px solid #888;background:linear-gradient(#fff,#ccc);border-radius:5px;cursor:pointer;font-weight:bold}
+.bottom{padding:12px;background:linear-gradient(#00a9ed,#0070d9)}
+.transport{display:flex;gap:8px;justify-content:space-around;align-items:center;flex-wrap:wrap;background:linear-gradient(#fff,#ccc);padding:10px;border-radius:8px}
+.timer{font-size:20px;font-weight:bold;background:white;padding:10px}
+.footer{padding:15px;background:#100b69;color:white;display:flex;justify-content:space-between}
+.creative{font-size:25px;color:#26c9e0;font-weight:bold}
+.hidden{display:none}
+@media(max-width:600px){.mainbox{grid-template-columns:1fr}.description{font-size:14px}}
+</style>
+</head>
+<body>
+<div class="console">
+
+<header class="header">
+<div class="logo">EAX <span>ADVANCED</span> CONSOLE</div>
+<select style="width:180px"><option>VANTA Audio Engine</option></select>
+</header>
+
+<div class="tabs">
+<div class="tab active" onclick="showTab('effects',this)">◉ Effects</div>
+<div class="tab" onclick="showTab('karaoke',this)">◉ Karaoke</div>
+<div class="tab" onclick="showTab('cmss',this)">◉ CMSS 3D</div>
+<div class="tab" onclick="showTab('cleanup',this)">◉ Clean-up</div>
+</div>
+
+<div class="content">
+
+<div id="effects">
+<p class="description">Audio Effects - Professional Reverb Enhancement Engine</p>
+
+<label><input type="checkbox" id="enabled" checked onchange="updateAudio()"> Enable Audio Effects</label>
+
+<div class="mainbox">
+<div>
+<h3>Environment / Active Preset</h3>
+<select id="environment" size="7" onchange="updateAudio()">
+<option>Cathedral</option>
+<option>Chapel</option>
+<option>Church</option>
+<option>Concert Hall</option>
+<option>Garage</option>
+<option selected>Haunted Cavern</option>
+<option>Auditorium</option>
+<option>Stone Room</option>
+</select>
+</div>
+
+<div>
+<div class="control">Effects Amount: <span class="value" id="amountV">85</span></div>
+<input type="range" id="amount" min="0" max="100" value="85">
+
+<div class="control">REVERB POWER: <span class="value" id="reverbV">95</span></div>
+<input type="range" id="reverb" min="0" max="100" value="95">
+
+<div class="control">MASTER VOLUME: <span class="value" id="volumeV">130</span></div>
+<input type="range" id="volume" min="0" max="150" value="130">
+
+<div class="control">BASS: <span class="value" id="bassV">5</span></div>
+<input type="range" id="bass" min="-12" max="12" value="5">
+
+<div class="control">TREBLE: <span class="value" id="trebleV">3</span></div>
+<input type="range" id="treble" min="-12" max="12" value="3">
+</div>
+</div>
+</div>
+
+<div id="karaoke" class="hidden">
+<h2>Karaoke</h2>
+<p>Microphone and music use the same effects engine.</p>
+</div>
+
+<div id="cmss" class="hidden">
+<h2>CMSS 3D</h2>
+<p>3D processing is not enabled in this version.</p>
+</div>
+
+<div id="cleanup" class="hidden">
+<h2>Clean-up</h2>
+<p>Noise reduction is not enabled in this version.</p>
+</div>
+
+<div class="control">
+<h3>EXTERNAL MUSIC</h3>
+<input type="file" id="audioFile" accept="audio/*">
+<audio id="player" controls style="width:100%;margin-top:12px"></audio>
+</div>
+
+</div>
+
+<div class="bottom">
+<div class="transport">
+<button onclick="startMic()">🎙 MIC ON</button>
+<button onclick="stopMic()">MIC OFF</button>
+<button onclick="document.getElementById('player').play()">▶ PLAY</button>
+<button onclick="document.getElementById('player').pause()">Ⅱ PAUSE</button>
+<button onclick="stopAll()">■ STOP</button>
+<button onclick="testSound()">TEST</button>
+</div>
+</div>
+
+<div class="footer">
+<button onclick="resetAll()">Default</button>
+<span class="creative">VANTA EAX</span>
+</div>
+</div>
+
+<script>
+let ctx=null;
+let stream=null;
+let micSource=null;
+let musicSource=null;
+let filters=[];
+let convolver;
+let compressor;
+let limiter;
+let master;
+let wet;
+let dry;
+let inputBus;
+let musicURL=null;
+
+const presets={
+"Cathedral":[6,5],
+"Chapel":[4,3],
+"Church":[5,4],
+"Concert Hall":[4,3],
+"Garage":[2,2],
+"Haunted Cavern":[5,4],
+"Auditorium":[5,3],
+"Stone Room":[3,3]
+};
+
+async function init(){
+ if(ctx){
+  await ctx.resume();
+  return;
+ }
+
+ const AC=window.AudioContext||window.webkitAudioContext;
+ if(!AC)throw Error("Web Audio not supported");
+
+ ctx=new AC();
+
+ inputBus=ctx.createGain();
+
+ compressor=ctx.createDynamicsCompressor();
+ compressor.threshold.value=-20;
+ compressor.knee.value=20;
+ compressor.ratio.value=6;
+ compressor.attack.value=.005;
+ compressor.release.value=.2;
+
+ filters=[
+  ctx.createBiquadFilter(),
+  ctx.createBiquadFilter()
+ ];
+
+ filters[0].type="lowshelf";
+ filters[0].frequency.value=150;
+
+ filters[1].type="highshelf";
+ filters[1].frequency.value=7500;
+
+ convolver=ctx.createConvolver();
+
+ wet=ctx.createGain();
+ dry=ctx.createGain();
+
+ limiter=ctx.createDynamicsCompressor();
+ limiter.threshold.value=-8;
+ limiter.knee.value=0;
+ limiter.ratio.value=15;
+ limiter.attack.value=.003;
+ limiter.release.value=.15;
+
+ master=ctx.createGain();
+
+ inputBus.connect(compressor);
+ compressor.connect(filters[0]);
+ filters[0].connect(filters[1]);
+
+ filters[1].connect(convolver);
+ convolver.connect(wet);
+ wet.connect(limiter);
+
+ filters[1].connect(dry);
+ dry.connect(limiter);
+
+ limiter.connect(master);
+ master.connect(ctx.destination);
+
+ updateAudio();
+}
+
+function makeImpulse(time,decay){
+ let length=Math.floor(ctx.sampleRate*time);
+ let buffer=ctx.createBuffer(2,length,ctx.sampleRate);
+
+ for(let c=0;c<2;c++){
+  let data=buffer.getChannelData(c);
+  for(let i=0;i<length;i++){
+   let fade=1-i/length;
+   data[i]=(Math.random()*2-1)*
+   Math.pow(fade,decay)*
+   Math.min(1,i/(ctx.sampleRate*.03));
+  }
+ }
+ return buffer;
+}
+
+function val(id){
+ return Number(document.getElementById(id).value);
+}
+
+function updateAudio(){
+ ["amount","reverb","volume","bass","treble"].forEach(id=>{
+  document.getElementById(id+"V").textContent=val(id);
+ });
+
+ if(!ctx)return;
+
+ let enabled=document.getElementById("enabled").checked;
+ let preset=document.getElementById("environment").value;
+ let [time,decay]=presets[preset];
+
+ convolver.buffer=makeImpulse(time,decay);
+
+ let amount=val("amount")/100;
+ let reverb=val("reverb")/100;
+
+ wet.gain.setTargetAtTime(
+  enabled ? amount*reverb*2.2 : 0,
+  ctx.currentTime,.05
+ );
+
+ dry.gain.setTargetAtTime(
+  enabled ? 1 : 1,
+  ctx.currentTime,.05
+ );
+
+ master.gain.setTargetAtTime(
+  val("volume")/100,
+  ctx.currentTime,.05
+ );
+
+ filters[0].gain.value=val("bass");
+ filters[1].gain.value=val("treble");
+}
+
+async function startMic(){
+ try{
+  await init();
+
+  if(stream)return;
+
+  stream=await navigator.mediaDevices.getUserMedia({
+   audio:{
+    echoCancellation:false,
+    noiseSuppression:false,
+    autoGainControl:false
+   }
+  });
+
+  micSource=ctx.createMediaStreamSource(stream);
+  micSource.connect(inputBus);
+
+ }catch(e){
+  alert("Microphone error: "+e.message);
+ }
+}
+
+function stopMic(){
+ if(stream){
+  stream.getTracks().forEach(t=>t.stop());
+  stream=null;
+  micSource=null;
+ }
+}
+
+document.getElementById("audioFile").onchange=async function(e){
+ try{
+  await init();
+
+  let player=document.getElementById("player");
+
+  if(musicURL)URL.revokeObjectURL(musicURL);
+  musicURL=URL.createObjectURL(e.target.files[0]);
+
+  player.src=musicURL;
+
+  if(!musicSource){
+   musicSource=ctx.createMediaElementSource(player);
+   musicSource.connect(inputBus);
+  }
+
+  await player.play();
+
+ }catch(e){
+  alert(e.message);
+ }
+};
+
+function stopAll(){
+ stopMic();
+ document.getElementById("player").pause();
+}
+
+async function testSound(){
+ await init();
+
+ let osc=ctx.createOscillator();
+ let gain=ctx.createGain();
+
+ osc.frequency.value=440;
+ gain.gain.setValueAtTime(.06,ctx.currentTime);
+ gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+1);
+
+ osc.connect(gain);
+ gain.connect(inputBus);
+
+ osc.start();
+ osc.stop(ctx.currentTime+1);
+}
+
+function resetAll(){
+ document.getElementById("amount").value=85;
+ document.getElementById("reverb").value=95;
+ document.getElementById("volume").value=100;
+ document.getElementById("bass").value=5;
+ document.getElementById("treble").value=3;
+ updateAudio();
+}
+
+["amount","reverb","volume","bass","treble"].forEach(id=>{
+ document.getElementById(id).addEventListener("input",updateAudio);
+});
+
+document.getElementById("environment").addEventListener("change",updateAudio);
+
+function showTab(id,button){
+ document.querySelectorAll(".content>div").forEach(x=>x.classList.add("hidden"));
+ document.getElementById(id).classList.remove("hidden");
+ document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+ button.classList.add("active");
+}
+</script>
+</body>
+</html>
